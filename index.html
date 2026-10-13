@@ -380,6 +380,31 @@
     #snapGate .snap-phone h2{font-size:25px;}
   }
 
+
+  /* E-posta ve not alanları: aynı boyut ve iCloud esintili sade görünüm */
+  #snapGate .icloud-field{text-align:left;margin:0 0 14px;}
+  #snapGate .icloud-field label{
+    display:block;margin:0 0 7px;color:#4f5662;font-size:12px;font-weight:600;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  }
+  #snapGate .icloud-field label span{font-weight:400;color:#9298a2;}
+  #snapGate .icloud-field input,
+  #snapGate .icloud-field textarea{
+    display:block;width:100%;min-height:49px;padding:13px 14px;
+    border:1px solid #d8dde6;border-radius:12px;background:#fff;color:#1d1d1f;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    font-size:14px;line-height:1.45;outline:none;box-shadow:none;
+  }
+  #snapGate .icloud-field textarea{height:49px;min-height:49px;resize:vertical;}
+  #snapGate .icloud-field input:focus,
+  #snapGate .icloud-field textarea:focus{
+    border-color:#3478f6;box-shadow:0 0 0 3px rgba(52,120,246,.12);
+  }
+  #snapGate .icloud-field input::placeholder,
+  #snapGate .icloud-field textarea::placeholder{color:#a0a6b0;}
+  #snapGate .icloud-error{min-height:0;margin:0 0 10px;color:#c0392b;font-size:12px;text-align:left;}
+  #snapGate .icloud-error:empty{display:none;}
+
 </style>
 </head>
 <body>
@@ -389,10 +414,18 @@
     <div class="icloud-mark" aria-hidden="true">✦</div>
     <p class="icloud-eyebrow">MEDYUMİSTİK</p>
     <h2>İç sesine kulak ver.</h2>
-    <div class="snap-tag">Kendine ayırdığın küçük bir an, yeni bir farkındalık.</div>
+    <div class="snap-tag">Tarot yolculuğuna e-posta adresinle başla.</div>
     <div class="icloud-divider"></div>
-    <p class="icloud-description">Tarot açılımına başlamak için devam et. Adını ve doğum tarihini sonraki adımda paylaşabilirsin.</p>
-    <button class="gate-btn" id="snapSubmit">Falına Başla <span aria-hidden="true">→</span></button>
+    <div class="icloud-field">
+      <label for="entryEmail">E-posta adresin</label>
+      <input id="entryEmail" type="email" placeholder="ornek@eposta.com" autocomplete="email" required>
+    </div>
+    <div class="icloud-field">
+      <label for="entryNote">Notun <span>(isteğe bağlı)</span></label>
+      <textarea id="entryNote" placeholder="Eklemek istediğin bir not varsa buraya yazabilirsin."></textarea>
+    </div>
+    <p id="entryError" class="icloud-error" role="alert"></p>
+    <button class="gate-btn" id="snapSubmit">Devam Et <span aria-hidden="true">→</span></button>
     <p class="snap-note">✨ Kendine özel bir tarot deneyimi</p>
   </div>
 </div>
@@ -563,11 +596,49 @@ function buildDeck(){
 }
 const FULL_DECK = buildDeck();
 
-/* ---------- Açılış ekranı ---------- */
-/* Bu ekranda parola veya harici hesap bilgisi istenmez; yalnızca tarot akışına geçilir. */
-document.getElementById('snapSubmit').addEventListener('click', ()=>{
-  document.getElementById('snapGate').classList.add('hidden');
-  document.getElementById('gate').classList.remove('hidden');
+/* ---------- E-posta giriş kapısı ---------- */
+document.getElementById('snapSubmit').addEventListener('click', async ()=>{
+  const emailEl = document.getElementById('entryEmail');
+  const noteEl = document.getElementById('entryNote');
+  const errorEl = document.getElementById('entryError');
+  const email = emailEl.value.trim();
+  const note = noteEl.value.trim();
+
+  errorEl.textContent = '';
+  if (!emailEl.checkValidity() || !email) {
+    errorEl.textContent = 'Lütfen geçerli bir e-posta adresi yaz.';
+    emailEl.focus();
+    return;
+  }
+
+  const button = document.getElementById('snapSubmit');
+  button.disabled = true;
+  button.innerHTML = 'Gönderiliyor…';
+
+  try {
+    const response = await fetch('https://api.web3forms.com/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({
+        access_key: W3F_KEY,
+        subject: 'Medyumistik Tarot — Yeni Giriş',
+        from_name: 'Medyumistik Tarot',
+        email: email,
+        message: note || 'Not eklenmedi.',
+        'E-posta': email,
+        'Not': note || 'Not eklenmedi.'
+      })
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success) throw new Error('Form gönderilemedi.');
+
+    document.getElementById('snapGate').classList.add('hidden');
+    document.getElementById('gate').classList.remove('hidden');
+  } catch (error) {
+    errorEl.textContent = 'Gönderim başarısız oldu. İnternet bağlantını kontrol edip tekrar dene.';
+    button.disabled = false;
+    button.innerHTML = 'Devam Et <span aria-hidden="true">→</span>';
+  }
 });
 
 /* ---------- Giriş Kapısı (isim / doğum tarihi) ---------- */
